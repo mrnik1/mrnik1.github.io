@@ -1,341 +1,652 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>BUZZ.EXE — Toy Story Horror</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liquid Physics</title>
+
 <style>
-  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050505;font-family:Arial,sans-serif}
-  body{display:flex;align-items:center;justify-content:center}
-  canvas{display:block;background:#111;image-rendering:auto}
-  #hint{position:fixed;bottom:10px;left:0;right:0;text-align:center;color:#aaa;font-size:13px;pointer-events:none}
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        background: #111;
+        color: white;
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+    }
+
+    #game {
+        display: block;
+        background: #181818;
+        cursor: crosshair;
+    }
+
+    #ui {
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        background: rgba(20, 20, 20, 0.9);
+        padding: 15px;
+        border-radius: 10px;
+        width: 230px;
+        user-select: none;
+    }
+
+    #ui h2 {
+        margin: 0 0 12px 0;
+        font-size: 20px;
+    }
+
+    .control {
+        margin: 10px 0;
+    }
+
+    .control label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+    }
+
+    input[type="range"] {
+        width: 100%;
+    }
+
+    button {
+        width: 100%;
+        padding: 9px;
+        margin-top: 6px;
+        border: 0;
+        border-radius: 6px;
+        background: #287be0;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    button:hover {
+        background: #3990f5;
+    }
+
+    #hint {
+        margin-top: 10px;
+        font-size: 12px;
+        color: #aaa;
+        line-height: 1.4;
+    }
 </style>
 </head>
+
 <body>
-<canvas id="game" width="960" height="540"></canvas>
-<div id="hint">A/D or ←/→: move &nbsp; SPACE/W/↑: jump &nbsp; E: interact &nbsp; R: restart</div>
+
+<canvas id="game"></canvas>
+
+<div id="ui">
+    <h2>Liquid Physics</h2>
+
+    <div class="control">
+        <label>
+            Gravity:
+            <span id="gravityValue">0.35</span>
+        </label>
+        <input id="gravity" type="range"
+               min="0"
+               max="1"
+               step="0.01"
+               value="0.35">
+    </div>
+
+    <div class="control">
+        <label>
+            Viscosity:
+            <span id="viscosityValue">0.92</span>
+        </label>
+        <input id="viscosity" type="range"
+               min="0.80"
+               max="0.99"
+               step="0.01"
+               value="0.92">
+    </div>
+
+    <div class="control">
+        <label>
+            Liquid:
+            <span id="amountValue">250</span>
+        </label>
+        <input id="amount" type="range"
+               min="50"
+               max="600"
+               step="10"
+               value="250">
+    </div>
+
+    <button id="add">Add Liquid</button>
+    <button id="reset">Reset</button>
+
+    <div id="hint">
+        Click and drag to push the liquid.<br>
+        Hold the mouse to create a stream.
+    </div>
+</div>
 
 <script>
-const canvas=document.getElementById("game"), ctx=canvas.getContext("2d");
-const W=canvas.width,H=canvas.height;
-ctx.imageSmoothingEnabled=true;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 
-const keys={};
-addEventListener("keydown",e=>{
-  keys[e.key.toLowerCase()]=true;
-  if([" ","arrowup","arrowdown","arrowleft","arrowright"].includes(e.key.toLowerCase()))e.preventDefault();
-  if(e.key.toLowerCase()==="r") restart();
-});
-addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+let width;
+let height;
 
-let state="title", time=0, camera=0, shake=0, deathTimer=0;
-let player, enemies, toys, particles, message="", messageTimer=0, collected=0;
-let platforms=[
-  {x:-300,y:470,w:1600,h:80},
-  {x:1100,y:410,w:260,h:30},
-  {x:1480,y:350,w:250,h:30},
-  {x:1840,y:420,w:280,h:30},
-  {x:2240,y:330,w:250,h:30},
-  {x:2610,y:430,w:300,h:30},
-  {x:3050,y:360,w:270,h:30},
-  {x:3450,y:450,w:500,h:80}
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+}
+
+window.addEventListener("resize", resize);
+resize();
+
+
+// ============================================================
+// LIQUID PARTICLES
+// ============================================================
+
+const particles = [];
+
+const particleRadius = 4;
+const maxSpeed = 12;
+
+let gravity = 0.35;
+let viscosity = 0.92;
+
+
+// ============================================================
+// WALLS
+// ============================================================
+
+const walls = [
+    // Floor
+    {
+        x1: 0,
+        y1: 0.88,
+        x2: 1,
+        y2: 0.88
+    },
+
+    // Left wall
+    {
+        x1: 0,
+        y1: 0,
+        x2: 0,
+        y2: 0.88
+    },
+
+    // Right wall
+    {
+        x1: 1,
+        y1: 0,
+        x2: 1,
+        y2: 0.88
+    },
+
+    // Small platform
+    {
+        x1: 0.30,
+        y1: 0.70,
+        x2: 0.70,
+        y2: 0.70
+    }
 ];
 
-function restart(){
-  state="title";time=0;camera=0;shake=0;deathTimer=0;message="";messageTimer=0;collected=0;
-  player={x:90,y:390,w:34,h:58,vx:0,vy:0,onGround:false,facing:1,health:3,inv:0};
-  enemies=[
-    {type:"woody",x:720,y:402,w:38,h:58,vx:1.15,dir:-1,alive:true},
-    {type:"rex",x:1280,y:342,w:48,h:68,vx:.8,dir:1,alive:true},
-    {type:"jessie",x:1900,y:352,w:38,h:68,vx:1.25,dir:-1,alive:true},
-    {type:"hamm",x:2450,y:272,w:48,h:48,vx:1.7,dir:-1,alive:true},
-    {type:"woody",x:2890,y:372,w:38,h:58,vx:1.6,dir:1,alive:true},
-    {type:"andy",x:3260,y:302,w:36,h:58,vx:1.9,dir:-1,alive:true}
-  ];
-  toys=[
-    {x:1230,y:365,taken:false},
-    {x:1980,y:375,taken:false},
-    {x:2720,y:385,taken:false},
-    {x:3160,y:315,taken:false}
-  ];
-  particles=[];
-}
-restart();
 
-function rects(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
-function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
-function text(t,x,y,size,fill="#fff",align="left"){
-  ctx.font=`${size}px Arial`;ctx.fillStyle=fill;ctx.textAlign=align;ctx.fillText(t,x,y)
-}
-function worldX(x){return x-camera}
+// ============================================================
+// PARTICLE CREATION
+// ============================================================
 
-function spawn(x,y,color,n=8){
-  for(let i=0;i<n;i++)particles.push({x,y,vx:(Math.random()-.5)*5,vy:(Math.random()-.5)*5-1,life:25+Math.random()*35,color});
+function createParticle(x, y) {
+
+    particles.push({
+        x: x,
+        y: y,
+
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2,
+
+        radius: particleRadius
+    });
 }
 
-function hurt(){
-  if(player.inv>0)return;
-  player.health--;player.inv=100;shake=16;spawn(player.x+17,player.y+30,"#ff2020",14);
-  if(player.health<=0){state="dead";deathTimer=0}
-}
 
-function update(){
-  if(state==="title"){
-    if(keys["enter"]||keys[" "])state="play";
-    return;
-  }
-  if(state==="dead"){
-    deathTimer++;
-    if(deathTimer>100 && (keys["enter"]||keys[" "]))restart(),state="play";
-    return;
-  }
-  if(state==="win"){
-    if(keys["enter"]||keys[" "])restart(),state="play";
-    return;
-  }
+function addLiquid(amount) {
 
-  time++;
-  if(player.inv>0)player.inv--;
+    for (let i = 0; i < amount; i++) {
 
-  let left=keys["a"]||keys["arrowleft"], right=keys["d"]||keys["arrowright"];
-  if(left){player.vx-=.55;player.facing=-1}
-  if(right){player.vx+=.55;player.facing=1}
-  if(!left&&!right)player.vx*=.82;
-  player.vx=clamp(player.vx,-5.5,5.5);
+        const x =
+            width * 0.5 +
+            (Math.random() - 0.5) * 150;
 
-  if((keys[" "]||keys["w"]||keys["arrowup"])&&player.onGround){
-    player.vy=-11.5;player.onGround=false;
-  }
+        const y =
+            height * 0.2 +
+            Math.random() * 50;
 
-  player.vy+=.55;
-  player.vy=clamp(player.vy,-20,14);
-
-  player.x+=player.vx;
-  for(const p of platforms){
-    if(player.x<p.x+p.w&&player.x+player.w>p.x){
-      if(player.y+player.h<=p.y+10&&player.y+player.h+player.vy>=p.y){
-        player.y=p.y-player.h;player.vy=0;player.onGround=true;
-      }
+        createParticle(x, y);
     }
-  }
-  if(player.y>620){hurt();player.x=Math.max(80,player.x-150);player.y=250;player.vy=0}
+}
 
-  // enemies
-  for(const e of enemies){
-    if(!e.alive)continue;
-    e.x+=e.vx*e.dir;
-    if(Math.random()<.008)e.dir*=-1;
-    if(Math.abs(e.x-player.x)<170)e.dir=player.x<e.x?-1:1;
-    if(rects(player,e)){
-      if(player.vy>2 && player.y+player.h-e.y<25){
-        e.alive=false;player.vy=-8;spawn(e.x+e.w/2,e.y+e.h/2,"#ff2b2b",18);
-      }else hurt();
+
+// ============================================================
+// MOUSE
+// ============================================================
+
+let mouse = {
+    x: 0,
+    y: 0,
+    px: 0,
+    py: 0,
+    down: false
+};
+
+canvas.addEventListener("mousemove", e => {
+
+    mouse.px = mouse.x;
+    mouse.py = mouse.y;
+
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+});
+
+canvas.addEventListener("mousedown", e => {
+
+    mouse.down = true;
+
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+
+    // Spawn some liquid where the mouse is
+    for (let i = 0; i < 4; i++) {
+        createParticle(
+            mouse.x + (Math.random() - 0.5) * 15,
+            mouse.y + (Math.random() - 0.5) * 15
+        );
     }
-  }
+});
 
-  // collectibles
-  for(const t of toys){
-    if(!t.taken && Math.abs(player.x-t.x)<35 && Math.abs(player.y-t.y)<70){
-      t.taken=true;collected++;message="YOU FOUND A LOST TOY.";messageTimer=90;
-      spawn(t.x,t.y,"#fff06a",16);
+window.addEventListener("mouseup", () => {
+    mouse.down = false;
+});
+
+
+// ============================================================
+// PHYSICS
+// ============================================================
+
+function distance(x1, y1, x2, y2) {
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+
+function particleCollision(a, b) {
+
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    const minDist = a.radius + b.radius;
+
+    if (dist < minDist && dist > 0) {
+
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        const overlap = minDist - dist;
+
+        // Separate particles
+        a.x -= nx * overlap * 0.5;
+        a.y -= ny * overlap * 0.5;
+
+        b.x += nx * overlap * 0.5;
+        b.y += ny * overlap * 0.5;
+
+        // Exchange velocity along collision normal
+        const relativeVelocity =
+            (b.vx - a.vx) * nx +
+            (b.vy - a.vy) * ny;
+
+        if (relativeVelocity < 0) {
+
+            const impulse = relativeVelocity * 0.5;
+
+            a.vx += impulse * nx;
+            a.vy += impulse * ny;
+
+            b.vx -= impulse * nx;
+            b.vy -= impulse * ny;
+        }
     }
-  }
-
-  // end
-  if(player.x>3550 && collected>=4){state="win";}
-
-  camera += ((player.x-300)-camera)*.09;
-  camera=clamp(camera,0,3000);
-
-  if(messageTimer>0)messageTimer--;
-  for(const p of particles){p.x+=p.vx;p.y+=p.vy;p.vy+=.08;p.life--}
-  particles=particles.filter(p=>p.life>0);
-  if(shake>0)shake*=.86;
 }
 
-function drawBackground(){
-  let g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,"#02040b");g.addColorStop(.55,"#080b12");g.addColorStop(1,"#13090d");
-  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
 
-  // moon
-  ctx.fillStyle="#d9d9c7";ctx.beginPath();ctx.arc(760,95,42,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle="#080b12";ctx.beginPath();ctx.arc(780,82,39,0,Math.PI*2);ctx.fill();
+// ============================================================
+// WALL COLLISION
+// ============================================================
 
-  // stars
-  for(let i=0;i<70;i++){
-    let x=(i*137)%W,y=(i*71)%250;
-    ctx.fillStyle=i%5===0?"#ff3344":"#777";
-    ctx.fillRect(x,y,1.5,1.5);
-  }
+function collideWithWall(p, wall) {
 
-  // distant toy-room silhouettes
-  ctx.fillStyle="#090b10";
-  for(let x=-((camera*.25)%220);x<W;x+=220){
-    ctx.fillRect(x,330,150,140);
-    ctx.fillRect(x+25,290,100,40);
-    ctx.beginPath();ctx.moveTo(x+20,290);ctx.lineTo(x+75,245);ctx.lineTo(x+130,290);ctx.fill();
-  }
+    const x1 = wall.x1 * width;
+    const y1 = wall.y1 * height;
+
+    const x2 = wall.x2 * width;
+    const y2 = wall.y2 * height;
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+
+    const length = Math.sqrt(dx * dx + dy * dy);
+
+    const nx = -dy / length;
+    const ny = dx / length;
+
+    const t =
+        ((p.x - x1) * dx +
+         (p.y - y1) * dy) /
+        (length * length);
+
+    const clampedT = Math.max(0, Math.min(1, t));
+
+    const closestX = x1 + dx * clampedT;
+    const closestY = y1 + dy * clampedT;
+
+    const diffX = p.x - closestX;
+    const diffY = p.y - closestY;
+
+    const dist = Math.sqrt(diffX * diffX + diffY * diffY);
+
+    if (dist < p.radius) {
+
+        let normalX;
+        let normalY;
+
+        if (dist > 0) {
+            normalX = diffX / dist;
+            normalY = diffY / dist;
+        } else {
+            normalX = nx;
+            normalY = ny;
+        }
+
+        const overlap = p.radius - dist;
+
+        p.x += normalX * overlap;
+        p.y += normalY * overlap;
+
+        const velocityIntoWall =
+            p.vx * normalX +
+            p.vy * normalY;
+
+        if (velocityIntoWall < 0) {
+
+            p.vx -= velocityIntoWall * normalX;
+            p.vy -= velocityIntoWall * normalY;
+
+            // Small amount of bounce
+            p.vx *= 0.85;
+            p.vy *= 0.85;
+        }
+
+        // Friction
+        p.vx *= 0.98;
+    }
 }
 
-function drawPlatform(p){
-  const x=worldX(p.x);
-  ctx.fillStyle="#17151a";ctx.fillRect(x,p.y,p.w,p.h);
-  ctx.fillStyle="#3a2630";ctx.fillRect(x,p.y,p.w,5);
-  ctx.strokeStyle="#63212d";ctx.lineWidth=2;ctx.strokeRect(x,p.y,p.w,p.h);
+
+// ============================================================
+// MOUSE FORCE
+// ============================================================
+
+function mouseInteraction(p) {
+
+    if (!mouse.down)
+        return;
+
+    const dx = p.x - mouse.x;
+    const dy = p.y - mouse.y;
+
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    const radius = 90;
+
+    if (dist < radius) {
+
+        const strength = 1 - dist / radius;
+
+        const mouseVX = mouse.x - mouse.px;
+        const mouseVY = mouse.y - mouse.py;
+
+        p.vx += mouseVX * strength * 0.45;
+        p.vy += mouseVY * strength * 0.45;
+    }
 }
 
-function drawBuzz(x,y,flip=false,glitch=false){
-  ctx.save();ctx.translate(x+(flip?34:0),y);ctx.scale(flip?-1:1,1);
-  if(glitch && Math.random()<.25)ctx.translate((Math.random()-.5)*5,0);
 
-  // legs
-  ctx.fillStyle="#a9b6bd";ctx.fillRect(8,48,8,10);ctx.fillRect(23,48,8,10);
-  ctx.fillStyle="#4b5c64";ctx.fillRect(7,56,10,3);ctx.fillRect(22,56,11,3);
+// ============================================================
+// UPDATE
+// ============================================================
 
-  // body
-  ctx.fillStyle="#e9eeee";ctx.fillRect(5,22,28,29);
-  ctx.fillStyle="#8bd0dc";ctx.fillRect(8,25,22,12);
-  ctx.fillStyle="#7049a5";ctx.fillRect(6,21,8,7);
-  ctx.fillStyle="#65b86b";ctx.fillRect(24,22,8,8);
+function update() {
 
-  // arms
-  ctx.fillStyle="#e9eeee";ctx.fillRect(0,27,7,18);ctx.fillRect(31,27,7,18);
-  ctx.fillStyle="#8bd0dc";ctx.fillRect(0,31,7,8);ctx.fillRect(31,31,7,8);
+    // Apply forces
+    for (const p of particles) {
 
-  // head
-  ctx.fillStyle="#e5b27d";ctx.beginPath();ctx.arc(19,14,11,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle="#ddd";ctx.beginPath();ctx.arc(19,11,12,Math.PI,0);ctx.fill();
-  ctx.fillStyle="#111";ctx.fillRect(14,12,3,3);ctx.fillRect(22,12,3,3);
-  ctx.fillStyle="#6d2929";ctx.fillRect(17,18,6,2);
+        p.vy += gravity;
 
-  // purple hood
-  ctx.strokeStyle="#6b3fa0";ctx.lineWidth=4;ctx.beginPath();ctx.arc(19,14,12,Math.PI,Math.PI*2);ctx.stroke();
+        mouseInteraction(p);
 
-  // wings
-  ctx.fillStyle="rgba(180,220,230,.55)";ctx.fillRect(32,24,12,14);ctx.fillRect(-6,24,12,14);
+        p.vx *= viscosity;
+        p.vy *= viscosity;
 
-  ctx.restore();
+        // Limit velocity
+        const speed =
+            Math.sqrt(p.vx * p.vx + p.vy * p.vy);
+
+        if (speed > maxSpeed) {
+
+            p.vx =
+                (p.vx / speed) * maxSpeed;
+
+            p.vy =
+                (p.vy / speed) * maxSpeed;
+        }
+
+        p.x += p.vx;
+        p.y += p.vy;
+    }
+
+
+    // Particle collisions
+    for (let i = 0; i < particles.length; i++) {
+
+        for (let j = i + 1; j < particles.length; j++) {
+
+            particleCollision(
+                particles[i],
+                particles[j]
+            );
+        }
+    }
+
+
+    // Wall collisions
+    for (const p of particles) {
+
+        for (const wall of walls) {
+            collideWithWall(p, wall);
+        }
+    }
 }
 
-function drawEnemy(e){
-  const x=worldX(e.x),y=e.y;
-  ctx.save();
-  if(e.type==="woody"){
-    ctx.fillStyle="#6d3d22";ctx.fillRect(x+8,y+17,22,35);
-    ctx.fillStyle="#e6b17c";ctx.beginPath();ctx.arc(x+19,y+13,12,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#111";ctx.fillRect(x+13,y+11,3,3);ctx.fillRect(x+22,y+11,3,3);
-    ctx.fillStyle="#e8d9b4";ctx.fillRect(x+4,y+20,7,20);ctx.fillRect(x+28,y+20,7,20);
-    ctx.fillStyle="#8b222c";ctx.fillRect(x+10,y+27,19,7);
-    ctx.fillStyle="#222";ctx.fillRect(x+9,y+52,8,6);ctx.fillRect(x+23,y+52,8,6);
-  }else if(e.type==="jessie"){
-    ctx.fillStyle="#b93332";ctx.fillRect(x+8,y+18,22,36);
-    ctx.fillStyle="#e9b47e";ctx.beginPath();ctx.arc(x+19,y+13,12,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#c72b2f";ctx.beginPath();ctx.arc(x+19,y+8,13,Math.PI,0);ctx.fill();
-    ctx.fillStyle="#111";ctx.fillRect(x+13,y+12,3,3);ctx.fillRect(x+22,y+12,3,3);
-    ctx.fillStyle="#fff";ctx.fillRect(x+11,y+29,16,4);
-    ctx.fillStyle="#222";ctx.fillRect(x+9,y+53,8,6);ctx.fillRect(x+23,y+53,8,6);
-  }else if(e.type==="rex"){
-    ctx.fillStyle="#4a8b48";ctx.fillRect(x+7,y+25,34,32);
-    ctx.fillStyle="#5da553";ctx.beginPath();ctx.arc(x+28,y+18,19,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#111";ctx.fillRect(x+22,y+13,5,5);ctx.fillRect(x+34,y+13,5,5);
-    ctx.fillStyle="#eee";ctx.fillRect(x+23,y+26,17,4);
-    ctx.fillStyle="#2e5c30";ctx.fillRect(x+2,y+32,10,8);
-    ctx.fillStyle="#333";ctx.fillRect(x+11,y+57,9,6);ctx.fillRect(x+30,y+57,9,6);
-  }else if(e.type==="hamm"){
-    ctx.fillStyle="#e9c5a1";ctx.beginPath();ctx.ellipse(x+24,y+25,24,16,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#dba77c";ctx.fillRect(x+4,y+21,9,8);
-    ctx.fillStyle="#111";ctx.fillRect(x+31,y+20,4,4);ctx.fillRect(x+40,y+20,4,4);
-    ctx.fillStyle="#333";ctx.fillRect(x+7,y+39,8,7);ctx.fillRect(x+32,y+39,8,7);
-  }else{
-    ctx.fillStyle="#5b6b9b";ctx.fillRect(x+7,y+19,23,37);
-    ctx.fillStyle="#e4ae7c";ctx.beginPath();ctx.arc(x+19,y+13,11,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#111";ctx.fillRect(x+13,y+12,3,3);ctx.fillRect(x+22,y+12,3,3);
-    ctx.fillStyle="#111";ctx.fillRect(x+10,y+55,8,6);ctx.fillRect(x+22,y+55,8,6);
-  }
 
-  // EXE eyes
-  ctx.fillStyle="#ff1010";
-  ctx.fillRect(x+11,y+11,4,3);ctx.fillRect(x+22,y+11,4,3);
-  ctx.restore();
+// ============================================================
+// DRAW
+// ============================================================
+
+function draw() {
+
+    ctx.clearRect(0, 0, width, height);
+
+
+    // Background
+    ctx.fillStyle = "#181818";
+    ctx.fillRect(0, 0, width, height);
+
+
+    // Walls
+    ctx.strokeStyle = "#777";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+
+    for (const wall of walls) {
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            wall.x1 * width,
+            wall.y1 * height
+        );
+
+        ctx.lineTo(
+            wall.x2 * width,
+            wall.y2 * height
+        );
+
+        ctx.stroke();
+    }
+
+
+    // Liquid
+    for (const p of particles) {
+
+        ctx.beginPath();
+
+        ctx.arc(
+            p.x,
+            p.y,
+            p.radius,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fillStyle = "#2499ff";
+        ctx.fill();
+    }
+
+
+    // Mouse interaction radius
+    if (mouse.down) {
+
+        ctx.beginPath();
+
+        ctx.arc(
+            mouse.x,
+            mouse.y,
+            90,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.strokeStyle =
+            "rgba(80,170,255,0.15)";
+
+        ctx.lineWidth = 2;
+        ctx.stroke();
+    }
 }
 
-function drawToy(t){
-  if(t.taken)return;
-  const x=worldX(t.x),y=t.y;
-  ctx.save();ctx.translate(x,y+Math.sin(time*.08+t.x)*4);
-  ctx.fillStyle="#e8e8e8";ctx.beginPath();ctx.arc(0,0,13,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle="#ef2525";ctx.fillRect(-4,-8,8,16);
-  ctx.fillStyle="#2d66dd";ctx.fillRect(-8,-4,16,8);
-  ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.strokeRect(-10,-10,20,20);
-  ctx.restore();
+
+// ============================================================
+// LOOP
+// ============================================================
+
+function loop() {
+
+    mouse.px = mouse.x;
+    mouse.py = mouse.y;
+
+    update();
+    draw();
+
+    requestAnimationFrame(loop);
 }
 
-function drawHUD(){
-  ctx.fillStyle="rgba(0,0,0,.65)";ctx.fillRect(15,15,260,78);
-  text("BUZZ.EXE",28,40,22,"#ff2525");
-  text("HEALTH",28,66,12,"#aaa");
-  for(let i=0;i<3;i++){
-    ctx.fillStyle=i<player.health?"#e52a36":"#30151a";
-    ctx.fillRect(82+i*25,57,19,13);
-  }
-  text(`TOYS: ${collected}/4`,28,85,12,"#ddd");
 
-  if(messageTimer>0){
-    ctx.fillStyle="rgba(0,0,0,.8)";ctx.fillRect(300,25,360,42);
-    text(message,480,52,15,"#fff","center");
-  }
-}
+// ============================================================
+// UI
+// ============================================================
 
-function draw(){
-  drawBackground();
-  let sx=(Math.random()-.5)*shake,sy=(Math.random()-.5)*shake;
-  ctx.save();ctx.translate(sx,sy);
+const gravitySlider =
+    document.getElementById("gravity");
 
-  for(const p of platforms)drawPlatform(p);
-  for(const t of toys)drawToy(t);
-  for(const e of enemies)if(e.alive)drawEnemy(e);
+const viscositySlider =
+    document.getElementById("viscosity");
 
-  // exit sign
-  const ex=worldX(3510);
-  ctx.fillStyle="#181818";ctx.fillRect(ex,385,120,55);
-  text("EXIT",ex+60,420,25,"#ff2020","center");
+const amountSlider =
+    document.getElementById("amount");
 
-  drawBuzz(worldX(player.x),player.y,player.facing<0,state==="play"&&time>900);
+gravitySlider.addEventListener("input", () => {
 
-  for(const p of particles){
-    ctx.globalAlpha=Math.max(0,p.life/50);ctx.fillStyle=p.color;
-    ctx.fillRect(worldX(p.x),p.y,4,4);ctx.globalAlpha=1;
-  }
-  ctx.restore();
+    gravity = Number(gravitySlider.value);
 
-  if(state==="title"){
-    ctx.fillStyle="rgba(0,0,0,.78)";ctx.fillRect(0,0,W,H);
-    text("BUZZ.EXE",480,170,76,"#d7192d","center");
-    text("A TOY STORY HORROR GAME",480,205,18,"#aaa","center");
-    text("BUZZ HAS BEEN LEFT BEHIND.",480,275,23,"#eee","center");
-    text("FIND THE 4 LOST TOYS AND REACH THE EXIT.",480,310,16,"#aaa","center");
-    text("PRESS ENTER OR SPACE TO START",480,385,19,"#fff","center");
-    text("Something is moving in Andy's room...",480,435,14,"#7d3030","center");
-  }
-  if(state==="dead"){
-    ctx.fillStyle="rgba(0,0,0,.9)";ctx.fillRect(0,0,W,H);
-    text("YOU'VE BEEN RESET.",480,210,48,"#e11","center");
-    text("BUZZ.EXE DOESN'T LIKE BEING ALONE.",480,255,17,"#aaa","center");
-    text("PRESS ENTER OR SPACE TO TRY AGAIN",480,330,17,"#fff","center");
-  }
-  if(state==="win"){
-    ctx.fillStyle="rgba(0,0,0,.88)";ctx.fillRect(0,0,W,H);
-    text("YOU ESCAPED.",480,190,56,"#fff","center");
-    text("BUT BUZZ IS STILL LISTENING.",480,245,20,"#d33","center");
-    text("THE END",480,315,18,"#aaa","center");
-    text("PRESS ENTER OR SPACE TO PLAY AGAIN",480,365,16,"#fff","center");
-  }
-  drawHUD();
-}
+    document.getElementById("gravityValue")
+        .textContent = gravity.toFixed(2);
+});
 
-function loop(){update();draw();requestAnimationFrame(loop)}
+
+viscositySlider.addEventListener("input", () => {
+
+    viscosity = Number(viscositySlider.value);
+
+    document.getElementById("viscosityValue")
+        .textContent = viscosity.toFixed(2);
+});
+
+
+amountSlider.addEventListener("input", () => {
+
+    document.getElementById("amountValue")
+        .textContent = amountSlider.value;
+});
+
+
+document.getElementById("add").onclick = () => {
+
+    addLiquid(
+        Number(amountSlider.value)
+    );
+};
+
+
+document.getElementById("reset").onclick = () => {
+
+    particles.length = 0;
+
+    addLiquid(
+        Number(amountSlider.value)
+    );
+};
+
+
+// Initial liquid
+addLiquid(250);
+
 loop();
+
 </script>
+
 </body>
 </html>
+```
