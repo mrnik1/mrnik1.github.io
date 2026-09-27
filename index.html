@@ -1,0 +1,394 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Blog</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #111;
+            color: #eee;
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+
+        header {
+            background: #181818;
+            border-bottom: 1px solid #333;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav {
+            max-width: 1100px;
+            margin: auto;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .logo span {
+            color: #e63946;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 30px;
+        }
+
+        nav a {
+            color: #ccc;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        nav a:hover {
+            color: #e63946;
+        }
+
+        /* Hero */
+
+        .hero {
+            max-width: 1100px;
+            margin: 60px auto 40px;
+            padding: 0 20px;
+        }
+
+        .hero-box {
+            background: #1c1c1c;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 55px;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .hero h1 span {
+            color: #e63946;
+        }
+
+        .hero p {
+            color: #aaa;
+            max-width: 650px;
+            font-size: 18px;
+        }
+
+        /* Main */
+
+        main {
+            max-width: 1100px;
+            margin: auto;
+            padding: 0 20px 60px;
+        }
+
+        .section-title {
+            font-size: 28px;
+            margin-bottom: 25px;
+        }
+
+        .posts {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+        }
+
+        .post {
+            background: #1c1c1c;
+            border: 1px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .post:hover {
+            transform: translateY(-5px);
+            border-color: #e63946;
+        }
+
+        .post-image {
+            height: 180px;
+            background: #292929;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #777;
+            font-size: 18px;
+        }
+
+        .post-content {
+            padding: 22px;
+        }
+
+        .category {
+            color: #e63946;
+            font-size: 13px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .post h3 {
+            font-size: 21px;
+            margin-bottom: 10px;
+        }
+
+        .post p {
+            color: #999;
+            font-size: 15px;
+            margin-bottom: 15px;
+        }
+
+        .date {
+            color: #666;
+            font-size: 13px;
+        }
+
+        /* About */
+
+        .about {
+            margin-top: 60px;
+            background: #1c1c1c;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 35px;
+        }
+
+        .about h2 {
+            margin-bottom: 12px;
+        }
+
+        .about p {
+            color: #aaa;
+            max-width: 750px;
+        }
+
+        /* Footer */
+
+        footer {
+            border-top: 1px solid #333;
+            background: #181818;
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+
+        /* Mobile */
+
+        @media (max-width: 800px) {
+            .posts {
+                grid-template-columns: 1fr;
+            }
+
+            nav ul {
+                gap: 15px;
+            }
+
+            .hero-box {
+                padding: 35px 25px;
+            }
+
+            .hero h1 {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <nav>
+            <div class="logo">My<span>Blog</span></div>
+
+            <ul>
+                <li><a href="#">Home</a></li>
+                <li><a href="#posts">Posts</a></li>
+                <li><a href="#about">About</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="hero-box">
+            <h1>Welcome to <span>My Blog</span></h1>
+
+            <p>
+                Thoughts, projects, stories, and random things I find interesting.
+                Welcome to my little corner of the internet.
+            </p>
+        </div>
+    </section>
+
+    <main>
+
+        <section id="posts">
+            <h2 class="section-title">Latest Posts</h2>
+
+            <div class="posts">
+
+                <article class="post">
+                    <div class="post-image">
+                        IMAGE
+                    </div>
+
+                    <div class="post-content">
+                        <div class="category">Technology</div>
+
+                        <h3>Building My First Website</h3>
+
+                        <p>
+                            A look at how I started building websites and the things
+                            I learned along the way.
+                        </p>
+
+                        <div class="date">September 27, 2026</div>
+                    </div>
+                </article>
+
+
+                <article class="post">
+                    <div class="post-image">
+                        IMAGE
+                    </div>
+
+                    <div class="post-content">
+                        <div class="category">Projects</div>
+
+                        <h3>What I've Been Working On</h3>
+
+                        <p>
+                            An update on some of my current projects, experiments,
+                            and ideas.
+                        </p>
+
+                        <div class="date">September 20, 2026</div>
+                    </div>
+                </article>
+
+
+                <article class="post">
+                    <div class="post-image">
+                        IMAGE
+                    </div>
+
+                    <div class="post-content">
+                        <div class="category">Thoughts</div>
+
+                        <h3>Things I've Been Thinking About</h3>
+
+                        <p>
+                            Some random thoughts and observations from the past
+                            couple of weeks.
+                        </p>
+
+                        <div class="date">September 14, 2026</div>
+                    </div>
+                </article>
+
+
+                <article class="post">
+                    <div class="post-image">
+                        IMAGE
+                    </div>
+
+                    <div class="post-content">
+                        <div class="category">Gaming</div>
+
+                        <h3>My Favorite Games</h3>
+
+                        <p>
+                            A collection of games I've been playing recently and
+                            why I keep coming back to them.
+                        </p>
+
+                        <div class="date">September 8, 2026</div>
+                    </div>
+                </article>
+
+
+                <article class="post">
+                    <div class="post-image">
+                        IMAGE
+                    </div>
+
+                    <div class="post-content">
+                        <div class="category">Tutorials</div>
+
+                        <h3>Something I Learned Recently</h3>
+
+                        <p>
+                            A simple explanation of something that took me a while
+                            to figure out.
+                        </p>
+
+                        <div class="date">September 1, 2026</div>
+                    </div>
+                </article>
+
+
+                <article class="post">
+                    <div class="post-image">
+                        IMAGE
+                    </div>
+
+                    <div class="post-content">
+                        <div class="category">Personal</div>
+
+                        <h3>Welcome to the Blog</h3>
+
+                        <p>
+                            The first post on my new website. Here's what you can
+                            expect to find here.
+                        </p>
+
+                        <div class="date">August 25, 2026</div>
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
+
+        <section class="about" id="about">
+            <h2>About Me</h2>
+
+            <p>
+                Hi! I'm the person behind this blog. I use this website to write
+                about things I'm interested in, share projects, and document
+                whatever I'm working on.
+            </p>
+        </section>
+
+    </main>
+
+
+    <footer>
+        © 2026 My Blog. All rights reserved.
+    </footer>
+
+</body>
+</html>
+```
